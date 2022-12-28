@@ -33,10 +33,81 @@ class Ols(object):
         return np.mean((self._predict(X)-Y)**2)
 
 
-model_ols = Ols()
-model_ols._fit(X, y)
-training_mse = model_ols.score(X, y)
-print(f'The training MSE is: {training_mse}')
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+
+class Normalizer():
+    def __init__(self):
+        self.mean = None
+        self.std = None
+
+    def fit(self, X):
+        self.mean = np.mean(X, axis=0)
+        self.std = np.std(X, axis=0)
+        return self
+
+    def predict(self, X):
+        # apply normalization
+        return (X - self.mean) / self.std
+
+
+class OlsGd(Ols):
+
+    def __init__(self, learning_rate=.05,
+                 num_iteration=1000,
+                 normalize=True,
+                 early_stop=True,
+                 verbose=True):
+
+        super(OlsGd, self).__init__()
+        self.learning_rate = learning_rate
+        self.num_iteration = num_iteration
+        self.early_stop = early_stop
+        self.normalize = normalize
+        self.normalizer = Normalizer()
+        self.verbose = verbose
+        self.loss = []
+
+    def loss_function(self, X, Y):
+        return np.mean((X @ self.w - Y) ** 2)
+
+    def _fit(self, X, Y, reset=True, track_loss=True):
+        # remember to normalize the data before starting
+        if self.normalize:
+            X = self.normalizer.fit(X).predict(X)
+        X = self.pad(X)
+        self.w = np.random.randn(X.shape[1])
+        stop = False
+        i = 1
+        prev_loss = 0
+        while i <= self.num_iteration:
+            curr_loss = self.loss_function(X, Y)
+            if track_loss:
+                self.loss.append(curr_loss)
+            self.w -= self._step(X, Y)
+            # Print iteration log if verbose=True
+            if self.verbose:
+                logging.info(f'Iteration number {i} - the loss is {round(curr_loss, 3)}')
+            # Check if early_stop=True and stop the loop in case the condition is met
+            if self.early_stop and abs(curr_loss - prev_loss) < 0.0001:
+                if self.verbose:
+                    logging.info(f'Stopped after {i} iterations due to early stop threshold!')
+                break
+            prev_loss = curr_loss
+            i += 1
+
+    def _predict(self, X):
+        # remember to normalize the data before starting
+        if self.normalize:
+            X = self.normalizer.predict(X)
+        return super()._predict(X)
+
+    def _step(self, X, Y):
+        # use w update for gradient descent
+        return self.learning_rate * (2 / X.shape[0]) * X.T @ (X @ self.w - Y)
+
+
 
 
 
