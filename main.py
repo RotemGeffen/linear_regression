@@ -52,6 +52,7 @@ class Normalizer():
         return (X - self.mean) / self.std
 
 
+# Implement OrdinaryLinearRegressionGradientDescent model
 class OlsGd(Ols):
 
     def __init__(self, learning_rate=.05,
@@ -106,6 +107,32 @@ class OlsGd(Ols):
     def _step(self, X, Y):
         # use w update for gradient descent
         return self.learning_rate * (2 / X.shape[0]) * X.T @ (X @ self.w - Y)
+
+
+# Ridge Linear Regression
+class RidgeLs(Ols):
+    def __init__(self, ridge_lambda, *wargs, **kwargs):
+        super(RidgeLs, self).__init__(*wargs, **kwargs)
+        self.ridge_lambda = ridge_lambda
+
+    def _fit(self, X, Y):
+        # Closed form of ridge regression
+        X = Ols.pad(X)
+        identity = self.ridge_lambda * np.eye(X.shape[1])
+        self.w = np.linalg.pinv(X.T @ X + identity) @ X.T @ Y
+
+    def score(self, X, Y):
+        return super(RidgeLs, self).score(X, Y) + np.sum((self.ridge_lambda * self.w) ** 2) / X.shape[0]
+
+
+# Ridge Regression - Gradient descent
+class RidgeLs_Gd(OlsGd):
+    def __init__(self, ridge_lambda, *wargs, **kwargs):
+        super(RidgeLs_Gd, self).__init__(*wargs, **kwargs)
+        self.ridge_lambda = ridge_lambda
+
+    def loss_function(self, X, Y):
+        return np.sum((X @ self.w - Y)**2) + np.sum(self.ridge_lambda * self.w**2)
 
 
 
